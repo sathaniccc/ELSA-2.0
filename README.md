@@ -3,8 +3,7 @@
   Fancy README (2025 Ready)
 -->
 <p align="center">
-  <img src="https://i.postimg.cc/0jk9dGGd/In-Shot-20250829-211520718.gif
-" alt="ELZA Logo" width="400"/>
+  <img src="https://i.postimg.cc/X7s5GJXx/96a4fe3b0b0b27501bebcb66141d9dc5.jpg" alt="ELSA Logo" width="200"/>
 </p>
 
 <p align="center">
