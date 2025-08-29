@@ -2,9 +2,7 @@
   E L S A   2 . 0   –  Server-Grade WhatsApp MD Bot
   Fancy README (2025 Ready)
 -->
-<p align="center">
-  <img src="https://raw.githubusercontent.com/yourusername/yourrepo/main/media/elza-logo.gif" alt="ELZA 2.0 Logo" width="400"/>
-</p>
+
 
 <p align="center">
   <img src="https://readme-typing-svg.demolab.com?font=Orbitron&weight=700&size=32&duration=2500&pause=1200&color=00E5FF&center=true&vCenter=true&width=1000&lines=ELSA+2.0+-+Server+Grade+WhatsApp+MD+Bot;Deploy+to+Koyeb+%7C+Railway+%7C+Heroku+%7C+VPS;2025+Ready+%7C+Node.js+20%2B" alt="Typing SVG"/>
