@@ -1,0 +1,7 @@
+{
+  "name": "ELSA-2.0",
+  "version": "2.2.0",
+  "start": "npm start",
+  "install": "npm install",
+  "node": "18.x"
+}
