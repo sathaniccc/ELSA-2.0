@@ -15,33 +15,7 @@
 
 ---
 
-## 🚀 One-Click Deploy
 
-<div align="center">
-
-<!-- KOYEB -->
-<a href="https://app.koyeb.com/deploy?type=git&repository=github.com/sathaniccc/ELSA-2.0&branch=main&name=elsa-2-0">
-  <img height="40" src="https://img.shields.io/badge/Deploy%20to%20Koyeb-f06a00?style=for-the-badge&logo=koyeb&logoColor=white" alt="Deploy to Koyeb">
-</a>
-
-<!-- RAILWAY (generic new-project link – replace with your template link later) -->
-<a href="https://railway.com/new">
-  <img height="40" src="https://railway.com/button.svg" alt="Deploy on Railway">
-</a>
-
-<!-- HEROKU -->
-<a href="https://www.heroku.com/deploy?template=https://github.com/sathaniccc/ELSA-2.0">
-  <img height="40" src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy to Heroku">
-</a>
-
-<!-- VPS via Docker -->
-<a href="#-vps--docker-deploy">
-  <img height="40" src="https://img.shields.io/badge/VPS%20(Docker)-1d63ed?style=for-the-badge&logo=docker&logoColor=white" alt="Deploy to VPS (Docker)">
-</a>
-
-</div>
-
-> **Heads-up:** Termux support is intentionally removed. ELSA 2.0 targets reliable server platforms (Koyeb, Railway, Heroku, Docker/VPS). Needs Node.js **20+**.
 
 ---
 
