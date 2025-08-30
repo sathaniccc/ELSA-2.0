@@ -1,20 +1,10 @@
 // start.js
-const mongoose = require("mongoose");
 require("dotenv").config();
-const fs = require("fs");   // only once
-const path = require("path");
-
-// delete old session before starting
-if (fs.existsSync("./auth")) {
-    fs.rmSync("./auth", { recursive: true, force: true });
-    console.log("🗑️ Old auth folder cleared");
-}
 const mongoose = require("mongoose");
-require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
-const { default: makeWASocket, useMultiFileAuthState, Browsers, makeInMemoryStore } = require("@whiskeysockets/baileys");
+const { default: makeWASocket, useMultiFileAuthState, Browsers } = require("@whiskeysockets/baileys");
 const P = require("pino");
 
 // ------------------- MongoDB Connection -------------------
@@ -29,14 +19,13 @@ async function connectDB() {
 }
 connectDB();
 
-// ------------------- Session Folder -------------------
+// ------------------- Delete Old Session -------------------
 const sessionPath = path.join(__dirname, process.env.SESSION_FOLDER || "auth");
-if (!fs.existsSync(sessionPath)) {
-  fs.mkdirSync(sessionPath);
-  console.log("📂 Session folder created:", sessionPath);
-} else {
-  console.log("📂 Session folder exists:", sessionPath);
+if (fs.existsSync(sessionPath)) {
+  fs.rmSync(sessionPath, { recursive: true, force: true });
+  console.log("🗑️ Old auth folder cleared");
 }
+fs.mkdirSync(sessionPath, { recursive: true });
 
 // ------------------- Express Server -------------------
 const app = express();
@@ -52,7 +41,7 @@ async function startBot() {
 
   const sock = makeWASocket({
     logger: P({ level: "silent" }),
-    printQRInTerminal: false,
+    printQRInTerminal: false, // Pairing code instead
     browser: Browsers.macOS("Safari"),
     auth: state,
   });
@@ -61,7 +50,7 @@ async function startBot() {
 
   // Generate pairing code
   if (!sock.authState.creds.registered) {
-    let phoneNumber = process.env.OWNER_NUMBER; // Example: 919778158839
+    const phoneNumber = process.env.OWNER_NUMBER; // Example: 919778158839
     if (!phoneNumber) {
       console.log("❌ OWNER_NUMBER not set in .env file");
       return;
