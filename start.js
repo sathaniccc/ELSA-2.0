@@ -1,47 +1,55 @@
 const express = require("express");
-const qrcode = require("qrcode");
-const { makeWASocket, useMultiFileAuthState } = require("@whiskeysockets/baileys");
+const makeWASocket = require("@whiskeysockets/baileys").default;
+const { useMultiFileAuthState } = require("@whiskeysockets/baileys");
+const QRCode = require("qrcode");
 
 const app = express();
 const port = process.env.PORT || 8000;
 
-let qrCodeData = ""; // save current QR string
+let qrString = null; // store QR temporarily
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("session");
 
   const sock = makeWASocket({
     auth: state,
-    printQRInTerminal: false,
-  });
-
-  sock.ev.on("connection.update", (update) => {
-    const { qr } = update;
-    if (qr) {
-      qrCodeData = qr; // save qr code string
-      console.log("✅ QR generated!");
-    }
+    printQRInTerminal: false, // disable terminal QR
   });
 
   sock.ev.on("creds.update", saveCreds);
+
+  // QR generate cheyyumbo catch cheyyuka
+  sock.ev.on("connection.update", (update) => {
+    const { qr } = update;
+    if (qr) {
+      qrString = qr;
+      console.log("✅ QR generated! Visit /qr to scan");
+    }
+  });
 }
 
-// Web route to show QR as image
-app.get("/qr", async (req, res) => {
-  if (!qrCodeData) {
-    return res.send("⏳ QR not generated yet. Please refresh after few seconds.");
-  }
-  try {
-    const qrImage = await qrcode.toDataURL(qrCodeData);
-    const html = `<h2>📱 Scan this QR with WhatsApp</h2><img src="${qrImage}" />`;
-    res.send(html);
-  } catch (err) {
-    res.send("❌ Error generating QR");
-  }
+// Home route
+app.get("/", (req, res) => {
+  res.send("✅ ELSA Bot Running! Visit <a href='/qr'>/qr</a> to scan QR");
 });
 
-app.get("/", (req, res) => {
-  res.send("✅ ELSA Bot Running! Visit /qr to scan QR");
+// QR route
+app.get("/qr", async (req, res) => {
+  if (!qrString) {
+    return res.send("⏳ QR not generated yet. Please refresh in a few seconds...");
+  }
+  try {
+    const qrImage = await QRCode.toDataURL(qrString);
+    res.send(`
+      <div style="text-align:center">
+        <h2>📱 Scan this QR with WhatsApp</h2>
+        <img src="${qrImage}" />
+        <p>Refresh if expired</p>
+      </div>
+    `);
+  } catch (err) {
+    res.status(500).send("❌ Error generating QR image");
+  }
 });
 
 app.listen(port, () => {
