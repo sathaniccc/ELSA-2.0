@@ -2,6 +2,8 @@ const express = require("express");
 const makeWASocket = require("@whiskeysockets/baileys").default;
 const { useMultiFileAuthState, DisconnectReason } = require("@whiskeysockets/baileys");
 const QRCode = require("qrcode");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -9,9 +11,18 @@ const port = process.env.PORT || 8000;
 let qrString = null; // QR temporary store
 let sock; // global socket
 
+// 🔥 Auto-restore creds.json from backup
+const backupPath = path.join(__dirname, "creds-backup.json");
+const credsPath = path.join(__dirname, "auth", "creds.json");
+
+if (fs.existsSync(backupPath) && !fs.existsSync(credsPath)) {
+  fs.mkdirSync(path.dirname(credsPath), { recursive: true });
+  fs.copyFileSync(backupPath, credsPath);
+  console.log("♻️ Restored creds.json from backup");
+}
+
 // 🔥 Main function
 async function startBot() {
-  // 👉 Session folder name set cheyyu (auth)
   const { state, saveCreds } = await useMultiFileAuthState("auth");
 
   sock = makeWASocket({
@@ -19,8 +30,14 @@ async function startBot() {
     printQRInTerminal: false, // QR only via /qr route
   });
 
-  // session save
-  sock.ev.on("creds.update", saveCreds);
+  // session save + backup
+  sock.ev.on("creds.update", async () => {
+    await saveCreds();
+    if (fs.existsSync(credsPath)) {
+      fs.copyFileSync(credsPath, backupPath);
+      console.log("✅ creds-backup.json updated (push this to GitHub)");
+    }
+  });
 
   // connection updates
   sock.ev.on("connection.update", (update) => {
