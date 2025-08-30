@@ -21,49 +21,28 @@ if (fs.existsSync(backupPath) && !fs.existsSync(credsPath)) {
   console.log("♻️ Restored creds.json from backup");
 }
 
-// 🔥 Load commands dynamically
-const commandsPath = path.join(__dirname, "commands");
-let commands = {};
+// 🌍 Command Loader
+const commands = new Map();
+function loadCommands() {
+  const commandPath = path.join(__dirname, "commands");
+  if (!fs.existsSync(commandPath)) {
+    console.log("⚠️ No commands folder found");
+    return;
+  }
 
-if (fs.existsSync(commandsPath)) {
-  fs.readdirSync(commandsPath).forEach((file) => {
-    if (file.endsWith(".js")) {
-      const command = require(path.join(commandsPath, file));
-      if (command.name && typeof command.execute === "function") {
-        commands[command.name] = command;
-        console.log(`✅ Loaded command: ${command.name}`);
+  const files = fs.readdirSync(commandPath).filter(f => f.endsWith(".js"));
+  for (const file of files) {
+    try {
+      const cmd = require(path.join(commandPath, file));
+      if (cmd.name && typeof cmd.run === "function") {
+        commands.set(cmd.name, cmd);
+        console.log(`✅ Loaded command: ${cmd.name}`);
+      } else {
+        console.log(`⚠️ Skipped invalid command file: ${file}`);
       }
+    } catch (err) {
+      console.error(`❌ Failed to load ${file}:`, err);
     }
-  });
-}
-
-// 🔥 Command Handler
-async function handleCommand(sock, m, prefix = ".") {
-  try {
-    const msg = m.message;
-    if (!msg) return;
-
-    const from = m.key.remoteJid;
-    const type = Object.keys(msg)[0];
-
-    let text =
-      type === "conversation"
-        ? msg.conversation
-        : type === "extendedTextMessage"
-        ? msg.extendedTextMessage.text
-        : "";
-
-    if (!text || !text.startsWith(prefix)) return;
-
-    const args = text.slice(prefix.length).trim().split(/ +/);
-    const cmdName = args.shift().toLowerCase();
-
-    if (commands[cmdName]) {
-      console.log(`⚡ Executing command: ${cmdName}`);
-      await commands[cmdName].execute(sock, m, args);
-    }
-  } catch (err) {
-    console.error("❌ Command error:", err);
   }
 }
 
@@ -86,9 +65,44 @@ async function startBot() {
   });
 
   // 🟢 Message Listener
-  sock.ev.on("messages.upsert", async ({ messages }) => {
-    const m = messages[0];
-    await handleCommand(sock, m, ".");
+  sock.ev.on("messages.upsert", async (m) => {
+    const msg = m.messages[0];
+    if (!msg.message) return;
+
+    const from = msg.key.remoteJid;
+    const type = Object.keys(msg.message)[0];
+    const body =
+      type === "conversation"
+        ? msg.message.conversation
+        : type === "extendedTextMessage"
+        ? msg.message.extendedTextMessage.text
+        : "";
+
+    if (!body) return;
+
+    console.log("📩 Message from", from, ":", body);
+
+    // 🔑 Prefix check
+    const prefix = "!";
+    if (!body.startsWith(prefix)) return;
+
+    const args = body.slice(prefix.length).trim().split(/ +/);
+    const cmdName = args.shift().toLowerCase();
+
+    const command = commands.get(cmdName);
+    if (!command) return;
+
+    try {
+      await command.run({
+        sock,
+        chat: from,
+        args,
+        reply: (text) => sock.sendMessage(from, { text }),
+      });
+    } catch (err) {
+      console.error(`❌ Error in command ${cmdName}:`, err);
+      await sock.sendMessage(from, { text: "⚠️ Error while running command." });
+    }
   });
 
   // 🔥 Connection Updates
@@ -152,5 +166,6 @@ app.get("/qr", async (req, res) => {
 // 🚀 Start server + bot
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
+  loadCommands();
   startBot();
 });
