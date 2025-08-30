@@ -5,7 +5,7 @@ const path = require("path");
 const express = require("express");
 
 // 🔑 Direct values (env venda)
-const PHONE_NUMBER = "919778158839";   // Full number with country code
+const PHONE_NUMBER = "+919778158839";   // ✅ +91 format
 const MONGODB_URI = "mongodb+srv://sathanic_elsa:3WUqzlKgkQdD3UwE@cluster0.ik3ong0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 const SESSION_FOLDER = "auth";
 
@@ -19,17 +19,11 @@ async function connectDB() {
     }
 }
 
-// 🗑️ Clear old session every deploy
+// 📂 Ensure session folder exists (no auto-delete now)
 const sessionPath = path.join(__dirname, SESSION_FOLDER);
-if (fs.existsSync(sessionPath)) {
-    fs.rmSync(sessionPath, { recursive: true, force: true });
-    console.log("🗑️ Old auth folder cleared");
-}
 fs.mkdirSync(sessionPath, { recursive: true });
 
 // 🔗 WhatsApp Connect
-let latestPairingCode = null;
-
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
 
@@ -42,35 +36,29 @@ async function connectToWhatsApp() {
     sock.ev.on("creds.update", saveCreds);
 
     sock.ev.on("connection.update", (update) => {
-        const { connection } = update;
+        const { connection, lastDisconnect } = update;
         if (connection === "open") console.log("✅ Connected to WhatsApp");
-        else if (connection === "close") console.log("❌ Connection closed");
+        else if (connection === "close") {
+            console.log("❌ Connection closed:", lastDisconnect?.error?.message);
+        }
     });
 
-    try {
-        if (!sock.authState.creds.registered) {
+    if (!sock.authState.creds.registered) {
+        try {
             console.log("⏳ Requesting Pairing Code...");
-            latestPairingCode = await sock.requestPairingCode(PHONE_NUMBER);
-            console.log("📲 Your Pairing Code:", latestPairingCode);
+            const code = await sock.requestPairingCode(PHONE_NUMBER);
+            console.log("📲 Your Pairing Code:", code);
+        } catch (err) {
+            console.error("❌ Error generating pairing code:", err.message);
         }
-    } catch (err) {
-        console.error("❌ Error generating pairing code:", err.message);
     }
 }
 
 connectDB();
 connectToWhatsApp();
 
-// 🌐 Express server
+// 🌐 Simple Express server (for Koyeb health check)
 const app = express();
 const PORT = 8000;
-
-app.get("/", (req, res) => {
-    if (latestPairingCode) {
-        res.send(`<h2>📲 Pairing Code: <b>${latestPairingCode}</b></h2>`);
-    } else {
-        res.send("⏳ Pairing Code not generated yet. Refresh after a few seconds.");
-    }
-});
-
+app.get("/", (req, res) => res.send("✅ ELSA Bot Running!"));
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
