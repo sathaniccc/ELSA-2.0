@@ -1,5 +1,8 @@
 // start.js
-const fs = require("fs");
+const mongoose = require("mongoose");
+require("dotenv").config();
+const fs = require("fs");   // only once
+const path = require("path");
 
 // delete old session before starting
 if (fs.existsSync("./auth")) {
