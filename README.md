@@ -18,8 +18,12 @@
 
 ---
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sathaniccc/ELSA-2.0/main/assets/qr-anim.svg" width="120" alt="QR Icon"/>
+  <a href="https://residential-daniela-sathaniccccc-82609ade.koyeb.app/qr" target="_blank">
+    <img src="https://raw.githubusercontent.com/sathaniccc/ELSA-2.0/main/assets/qr-anim.svg" width="100" alt="Scan QR"/>
+  </a>
 </p>
+<h2 align="center">Scan with WhatsApp → Linked Devices</h2>
+
 
 🌈 Features (Colorful & Clean)
 
