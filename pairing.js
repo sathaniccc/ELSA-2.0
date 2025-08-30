@@ -1,31 +1,21 @@
-const { default: makeWASocket, useMultiFileAuthState } = require("@whiskeysockets/baileys");
-const P = require("pino");
+const { makeWASocket, useMultiFileAuthState } = require("@whiskeysockets/baileys");
 
 async function connectToWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState(process.env.SESSION_FOLDER || "auth");
+    const { state, saveCreds } = await useMultiFileAuthState("./auth");
 
-  const sock = makeWASocket({
-    auth: state,
-    printQRInTerminal: true,
-    logger: P({ level: "silent" }),
-  });
+    const sock = makeWASocket({
+        auth: state,
+        printQRInTerminal: false,   // QR venda
+        browser: ["Ubuntu", "Chrome", "20.0.04"],
+    });
 
-  sock.ev.on("creds.update", saveCreds);
+    sock.ev.on("creds.update", saveCreds);
 
-  sock.ev.on("connection.update", (update) => {
-    const { connection, lastDisconnect, qr } = update;
-
-    if (qr) {
-      console.log("🔗 Scan this QR:", qr);
+    if (!sock.authState.creds.registered) {
+        const phoneNumber = process.env.NUMBER; // .env il number set cheyyu
+        const code = await sock.requestPairingCode(phoneNumber);
+        console.log("📲 Your Pairing Code:", code);
     }
-
-    if (connection === "open") {
-      console.log("✅ Connected to WhatsApp!");
-    } else if (connection === "close") {
-      console.log("❌ Connection closed. Retrying...");
-      connectToWhatsApp(); // auto retry
-    }
-  });
 }
 
 connectToWhatsApp();
