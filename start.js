@@ -8,8 +8,8 @@ const path = require("path");
 const app = express();
 const port = process.env.PORT || 8000;
 
-let qrString = null; // QR temporary store
-let sock; // global socket
+let qrString = null;
+let sock;
 
 // 🔥 Auto-restore creds.json from backup
 const backupPath = path.join(__dirname, "creds-backup.json");
@@ -27,10 +27,10 @@ async function startBot() {
 
   sock = makeWASocket({
     auth: state,
-    printQRInTerminal: false, // QR only via /qr route
+    printQRInTerminal: false,
   });
 
-  // session save + backup
+  // creds save + backup
   sock.ev.on("creds.update", async () => {
     await saveCreds();
     if (fs.existsSync(credsPath)) {
@@ -39,25 +39,23 @@ async function startBot() {
     }
   });
 
-  // 🟢 Message Listener (MENU system)
+  // 🟢 Message Listener
   sock.ev.on("messages.upsert", async (m) => {
     const msg = m.messages[0];
     if (!msg.message) return;
 
     const from = msg.key.remoteJid;
     const type = Object.keys(msg.message)[0];
-    let text = "";
+    const text =
+      type === "conversation"
+        ? msg.message.conversation
+        : type === "extendedTextMessage"
+        ? msg.message.extendedTextMessage.text
+        : "";
 
-    if (type === "conversation") text = msg.message.conversation;
-    else if (type === "extendedTextMessage") text = msg.message.extendedTextMessage.text;
-
-    text = text.trim().toLowerCase();
     console.log("📩 Message from", from, ":", text);
 
-    // ===== Commands =====
-
-    // MENU
-    if (["menu", ".menu", "!menu"].includes(text)) {
+    if (text.toLowerCase() === "menu") {
       const menuText = `
 ✨ *ELSA BOT MENU* ✨
 
@@ -71,37 +69,28 @@ async function startBot() {
       await sock.sendMessage(from, { text: menuText });
     }
 
-    // ALIVE
-    if (["alive", ".alive", "!alive"].includes(text)) {
-      await sock.sendMessage(from, { text: "✅ Bot is alive and running 🚀" });
-    }
-
-    // PING
-    if (text === ".ping") {
+    if (text.toLowerCase() === ".ping") {
       await sock.sendMessage(from, { text: "🏓 Pong! Bot is alive." });
     }
 
-    // OWNER
-    if (text === ".owner") {
+    if (text.toLowerCase() === ".owner") {
       await sock.sendMessage(from, {
         text: "👑 Owner: *SATHAN*\n📞 Number: wa.me/919778158839\n🌐 Repo: https://github.com/sathaniccc",
       });
     }
 
-    // REPO
-    if (text === ".repo") {
+    if (text.toLowerCase() === ".repo") {
       await sock.sendMessage(from, {
         text: "📂 GitHub: https://github.com/sathaniccc/ELSA-2.0",
       });
     }
 
-    // HELP
-    if (text === ".help") {
+    if (text.toLowerCase() === ".help") {
       await sock.sendMessage(from, { text: "⚡ Type *menu* to see all commands." });
     }
   });
 
-  // connection updates
+  // 🔥 Connection Updates
   sock.ev.on("connection.update", (update) => {
     const { connection, lastDisconnect, qr } = update;
 
@@ -112,20 +101,24 @@ async function startBot() {
 
     if (connection === "open") {
       console.log("🎉 WhatsApp connected successfully!");
-      qrString = null; // QR clear after login
+      qrString = null;
     }
 
     if (connection === "close") {
-      const shouldReconnect =
-        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-
+      const reason = lastDisconnect?.error?.output?.statusCode;
       console.log("⚠️ Connection closed. Reason:", lastDisconnect?.error);
 
-      if (shouldReconnect) {
-        console.log("🔄 Reconnecting...");
-        startBot(); // auto reconnect
+      if (reason === DisconnectReason.loggedOut || reason === 401) {
+        console.log("❌ Logged out / conflict detected. Clearing session...");
+        try {
+          fs.rmSync("auth", { recursive: true, force: true });
+          fs.rmSync("creds-backup.json", { force: true });
+        } catch {}
+        console.log("♻️ Session cleared. Please rescan QR at /qr");
+        startBot();
       } else {
-        console.log("❌ Logged out. Delete auth folder and scan again.");
+        console.log("🔄 Reconnecting...");
+        startBot();
       }
     }
   });
