@@ -1,4 +1,3 @@
-
 const express = require("express");
 const makeWASocket = require("@whiskeysockets/baileys").default;
 const { useMultiFileAuthState, DisconnectReason } = require("@whiskeysockets/baileys");
@@ -7,20 +6,23 @@ const QRCode = require("qrcode");
 const app = express();
 const port = process.env.PORT || 8000;
 
-let qrString = null; // store QR temporarily
-let sock; // socket global store
+let qrString = null; // QR temporary store
+let sock; // global socket
 
+// 🔥 Main function
 async function startBot() {
-  // 👉 "session" instead of "auth" use cheythathine replace cheyyuka
+  // 👉 Session folder name set cheyyu (auth)
   const { state, saveCreds } = await useMultiFileAuthState("auth");
 
   sock = makeWASocket({
     auth: state,
-    printQRInTerminal: false, // disable terminal QR
+    printQRInTerminal: false, // QR only via /qr route
   });
 
+  // session save
   sock.ev.on("creds.update", saveCreds);
 
+  // connection updates
   sock.ev.on("connection.update", (update) => {
     const { connection, lastDisconnect, qr } = update;
 
@@ -31,12 +33,13 @@ async function startBot() {
 
     if (connection === "open") {
       console.log("🎉 WhatsApp connected successfully!");
-      qrString = null; // clear QR after login
+      qrString = null; // QR clear after login
     }
 
     if (connection === "close") {
       const shouldReconnect =
         lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+
       console.log("⚠️ Connection closed. Reason:", lastDisconnect?.error);
 
       if (shouldReconnect) {
@@ -49,12 +52,12 @@ async function startBot() {
   });
 }
 
-// Home route
+// 🌍 Home route
 app.get("/", (req, res) => {
   res.send("✅ ELSA Bot Running! Visit <a href='/qr'>/qr</a> to scan QR");
 });
 
-// QR route
+// 📱 QR route
 app.get("/qr", async (req, res) => {
   if (!qrString) {
     return res.send("⏳ QR not generated yet OR already connected. Please refresh or logout.");
@@ -62,7 +65,7 @@ app.get("/qr", async (req, res) => {
   try {
     const qrImage = await QRCode.toDataURL(qrString);
     res.send(`
-      <div style="text-align:center">
+      <div style="text-align:center; font-family:sans-serif;">
         <h2>📱 Scan this QR with WhatsApp</h2>
         <img src="${qrImage}" />
         <p>Refresh if expired</p>
@@ -73,6 +76,7 @@ app.get("/qr", async (req, res) => {
   }
 });
 
+// 🚀 Start server + bot
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
   startBot();
