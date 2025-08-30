@@ -1,35 +1,31 @@
-const makeWASocket = require("@whiskeysockets/baileys").default;
-const { useMultiFileAuthState } = require("@whiskeysockets/baileys");
+const { default: makeWASocket, useMultiFileAuthState } = require("@whiskeysockets/baileys");
+const P = require("pino");
 
-async function start() {
-    const { state, saveCreds } = await useMultiFileAuthState("auth"); // same as start.js
+async function connectToWhatsApp() {
+  const { state, saveCreds } = await useMultiFileAuthState(process.env.SESSION_FOLDER || "auth");
 
-    const sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: false,
-    });
+  const sock = makeWASocket({
+    auth: state,
+    printQRInTerminal: true,
+    logger: P({ level: "silent" }),
+  });
 
-    sock.ev.on("connection.update", async (update) => {
-        const { connection } = update;
-        if (connection === "open") {
-            console.log("✅ Connected to WhatsApp");
-        }
-        if (connection === "close" && !sock.authState.creds.registered) {
-            const phoneNumber = process.env.PHONE_NUMBER;
-            if (!phoneNumber) {
-                console.error("❌ PHONE_NUMBER missing in .env");
-                return;
-            }
-            try {
-                const code = await sock.requestPairingCode(phoneNumber);
-                console.log("✅ Your Pairing Code:", code);
-            } catch (err) {
-                console.error("❌ Pairing failed:", err.message);
-            }
-        }
-    });
+  sock.ev.on("creds.update", saveCreds);
 
-    sock.ev.on("creds.update", saveCreds);
+  sock.ev.on("connection.update", (update) => {
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr) {
+      console.log("🔗 Scan this QR:", qr);
+    }
+
+    if (connection === "open") {
+      console.log("✅ Connected to WhatsApp!");
+    } else if (connection === "close") {
+      console.log("❌ Connection closed. Retrying...");
+      connectToWhatsApp(); // auto retry
+    }
+  });
 }
 
-start();
+connectToWhatsApp();
