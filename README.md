@@ -17,6 +17,9 @@
 </p>
 
 ---
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sathaniccc/ELSA-2.0/main/assets/qr-anim.svg" width="120" alt="QR Icon"/>
+</p>
 
 🌈 Features (Colorful & Clean)
 
