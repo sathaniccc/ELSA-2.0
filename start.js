@@ -1,53 +1,36 @@
-require("dotenv").config();
-const { default: makeWASocket, useMultiFileAuthState } = require("@whiskeysockets/baileys");
 const mongoose = require("mongoose");
+require("dotenv").config();
+const fs = require("fs");
+const path = require("path");
 
-// 🔹 MongoDB connect
-async function connectMongo() {
+async function connectDB() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    console.log("✅ MongoDB Connected");
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log("✅ MongoDB connected");
   } catch (err) {
     console.error("❌ MongoDB connection failed:", err.message);
+    process.exit(1);
   }
 }
 
-// 🔹 WhatsApp socket create
-async function createSocket() {
-  const { state, saveCreds } = await useMultiFileAuthState("auth");
+connectDB();
 
-  const sock = makeWASocket({
-    auth: state,
-    printQRInTerminal: false, // QR off (pairing code venam)
-  });
-
-  // Pairing code generate cheyyan
-  if (!sock.authState.creds.registered) {
-    try {
-      const code = await sock.requestPairingCode(process.env.OWNER_NUMBER);
-      console.log("📌 Your Pairing Code:", code);
-    } catch (err) {
-      console.error("❌ Failed to get pairing code:", err.message);
-    }
-  }
-
-  sock.ev.on("creds.update", saveCreds);
-
-  // Example handler
-  sock.ev.on("messages.upsert", async (m) => {
-    console.log("📩 Message received:", JSON.stringify(m, null, 2));
-  });
-
-  return sock;
+// Ensure session folder exists
+const sessionPath = path.join(__dirname, process.env.SESSION_FOLDER || "auth");
+if (!fs.existsSync(sessionPath)) {
+  fs.mkdirSync(sessionPath);
+  console.log("📂 Session folder created:", sessionPath);
+} else {
+  console.log("📂 Session folder exists:", sessionPath);
 }
 
-// 🔹 Start bot
-async function start() {
-  await connectMongo();
-  await createSocket();
-}
+// Example server (for Koyeb)
+const express = require("express");
+const app = express();
+const PORT = process.env.PORT || 8000;
 
-start();
+app.get("/", (req, res) => {
+  res.send("✅ ELSA-2.0 Bot Running with MongoDB & Pairing Code System!");
+});
+
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
