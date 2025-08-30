@@ -14,11 +14,27 @@ const { loadCommands } = require('./src/commands');
   app.listen(port, () => log.info('HTTP keepalive on ' + port));
 
   const sock = await createSocket();
-    const commands = loadCommands();
+  const commands = loadCommands();
   let prefix = process.env.PREFIX || '!';
   const owner = (process.env.OWNER_NUMBER || '').replace(/\D/g, ''); // e.g., 91XXXXXXXXXX
 
   function setPrefix(p) { prefix = p; }
+
+  // 🔑 Pairing Code Generator
+  if (!sock.authState.creds.registered) {
+    const phoneNumber = process.env.PAIR_NUMBER || owner; // use env or OWNER_NUMBER
+    if (phoneNumber) {
+      try {
+        const code = await sock.requestPairingCode(phoneNumber);
+        console.log("🔑 PAIRING CODE:", code);
+        log.info("Use this code in WhatsApp → Linked Devices → Link with phone number.");
+      } catch (err) {
+        log.error(err, "Failed to get pairing code");
+      }
+    } else {
+      log.error("No phone number found. Set PAIR_NUMBER=91XXXXXXXXXX in .env");
+    }
+  }
 
   // simple anti-spam cache
   const lastText = new Map(); // jid -> text
