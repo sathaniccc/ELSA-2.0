@@ -46,17 +46,18 @@ async function startBot() {
 
     const from = msg.key.remoteJid;
     const type = Object.keys(msg.message)[0];
-    const text =
-      type === "conversation"
-        ? msg.message.conversation
-        : type === "extendedTextMessage"
-        ? msg.message.extendedTextMessage.text
-        : "";
+    let text = "";
 
+    if (type === "conversation") text = msg.message.conversation;
+    else if (type === "extendedTextMessage") text = msg.message.extendedTextMessage.text;
+
+    text = text.trim().toLowerCase();
     console.log("📩 Message from", from, ":", text);
 
-    // ✅ Menu trigger
-    if (text.toLowerCase() === "menu") {
+    // ===== Commands =====
+
+    // MENU
+    if (["menu", ".menu", "!menu"].includes(text)) {
       const menuText = `
 ✨ *ELSA BOT MENU* ✨
 
@@ -67,28 +68,35 @@ async function startBot() {
 
 💠 _Type a command to use_
 `;
-
       await sock.sendMessage(from, { text: menuText });
     }
 
-    // ✅ Other commands
-    if (text.toLowerCase() === ".ping") {
+    // ALIVE
+    if (["alive", ".alive", "!alive"].includes(text)) {
+      await sock.sendMessage(from, { text: "✅ Bot is alive and running 🚀" });
+    }
+
+    // PING
+    if (text === ".ping") {
       await sock.sendMessage(from, { text: "🏓 Pong! Bot is alive." });
     }
 
-    if (text.toLowerCase() === ".owner") {
+    // OWNER
+    if (text === ".owner") {
       await sock.sendMessage(from, {
         text: "👑 Owner: *SATHAN*\n📞 Number: wa.me/919778158839\n🌐 Repo: https://github.com/sathaniccc",
       });
     }
 
-    if (text.toLowerCase() === ".repo") {
+    // REPO
+    if (text === ".repo") {
       await sock.sendMessage(from, {
         text: "📂 GitHub: https://github.com/sathaniccc/ELSA-2.0",
       });
     }
 
-    if (text.toLowerCase() === ".help") {
+    // HELP
+    if (text === ".help") {
       await sock.sendMessage(from, { text: "⚡ Type *menu* to see all commands." });
     }
   });
