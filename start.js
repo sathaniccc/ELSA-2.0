@@ -1,11 +1,11 @@
 const fs = require("fs");
 const path = require("path");
-const express = require("express");
 const mongoose = require("mongoose");
 require("dotenv").config();
-
+const express = require("express");
 const { makeWASocket, useMultiFileAuthState } = require("@whiskeysockets/baileys");
 
+// --- MongoDB Connection ---
 async function connectDB() {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
@@ -14,28 +14,33 @@ async function connectDB() {
     console.error("❌ MongoDB connection failed:", err.message);
   }
 }
+connectDB();
 
+// --- Ensure session folder ---
+const sessionPath = path.join(__dirname, "auth");
+if (!fs.existsSync(sessionPath)) {
+  fs.mkdirSync(sessionPath);
+  console.log("📂 Session folder created:", sessionPath);
+} else {
+  console.log("📂 Session folder exists:", sessionPath);
+}
+
+// --- WhatsApp Connection ---
 async function connectToWhatsApp() {
-  // ensure auth folder
-  const sessionPath = path.join(__dirname, "auth");
-  if (!fs.existsSync(sessionPath)) {
-    fs.mkdirSync(sessionPath);
-    console.log("📂 Session folder created:", sessionPath);
-  }
-
-  const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
+  const { state, saveCreds } = await useMultiFileAuthState("./auth");
 
   const sock = makeWASocket({
     auth: state,
-    printQRInTerminal: false, // no QR in logs
-    browser: ["ELSA-Bot", "Chrome", "1.0.0"],
+    printQRInTerminal: false, // QR venda, pairing code use cheyyu
+    browser: ["Ubuntu", "Chrome", "20.0.04"],
   });
 
   sock.ev.on("creds.update", saveCreds);
 
+  // Generate pairing code if not registered
   if (!sock.authState.creds.registered) {
     try {
-      const phoneNumber = process.env.NUMBER; // add NUMBER in .env
+      const phoneNumber = process.env.NUMBER; // .env file il NUMBER=91XXXXXXXX
       const code = await sock.requestPairingCode(phoneNumber);
       console.log("📲 Your Pairing Code:", code);
     } catch (err) {
@@ -43,28 +48,22 @@ async function connectToWhatsApp() {
     }
   }
 
-  sock.ev.on("connection.update", ({ connection }) => {
+  sock.ev.on("connection.update", (update) => {
+    const { connection } = update;
     if (connection === "open") {
-      console.log("✅ WhatsApp connected");
-    } else if (connection === "close") {
-      console.log("⚠️ WhatsApp connection closed, restarting...");
-      connectToWhatsApp();
+      console.log("✅ WhatsApp Connected!");
     }
   });
 }
 
-async function startApp() {
-  await connectDB();
-  await connectToWhatsApp();
+connectToWhatsApp();
 
-  const app = express();
-  const PORT = process.env.PORT || 8000;
+// --- Simple Express server (for Koyeb health checks) ---
+const app = express();
+const PORT = process.env.PORT || 8000;
 
-  app.get("/", (req, res) => {
-    res.send("✅ ELSA-2.0 Bot Running with MongoDB & Pairing Code!");
-  });
+app.get("/", (req, res) => {
+  res.send("✅ ELSA-2.0 Bot Running with MongoDB & Pairing Code System!");
+});
 
-  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-}
-
-startApp();
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
