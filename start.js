@@ -4,13 +4,10 @@ const fs = require("fs");
 const path = require("path");
 const express = require("express");
 
-// 🔑 Direct values
+// 🔑 Direct values (env venda)
 const PHONE_NUMBER = "919778158839";   // Full number with country code
 const MONGODB_URI = "mongodb+srv://sathanic_elsa:3WUqzlKgkQdD3UwE@cluster0.ik3ong0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 const SESSION_FOLDER = "auth";
-
-// ✅ Global pairing code store
-let latestPairingCode = null;
 
 // ✅ Connect MongoDB
 async function connectDB() {
@@ -22,7 +19,7 @@ async function connectDB() {
     }
 }
 
-// 🗑️ Clear old session
+// 🗑️ Clear old session every deploy
 const sessionPath = path.join(__dirname, SESSION_FOLDER);
 if (fs.existsSync(sessionPath)) {
     fs.rmSync(sessionPath, { recursive: true, force: true });
@@ -31,6 +28,8 @@ if (fs.existsSync(sessionPath)) {
 fs.mkdirSync(sessionPath, { recursive: true });
 
 // 🔗 WhatsApp Connect
+let latestPairingCode = null;
+
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
 
@@ -42,23 +41,21 @@ async function connectToWhatsApp() {
 
     sock.ev.on("creds.update", saveCreds);
 
-    sock.ev.on("connection.update", async (update) => {
+    sock.ev.on("connection.update", (update) => {
         const { connection } = update;
-        if (connection === "open") {
-            console.log("✅ Connected to WhatsApp");
-
-            if (!sock.authState.creds.registered) {
-                try {
-                    latestPairingCode = await sock.requestPairingCode(PHONE_NUMBER);
-                    console.log("📲 Your Pairing Code:", latestPairingCode);
-                } catch (err) {
-                    console.error("❌ Error generating pairing code:", err.message);
-                }
-            }
-        } else if (connection === "close") {
-            console.log("❌ Connection closed");
-        }
+        if (connection === "open") console.log("✅ Connected to WhatsApp");
+        else if (connection === "close") console.log("❌ Connection closed");
     });
+
+    try {
+        if (!sock.authState.creds.registered) {
+            console.log("⏳ Requesting Pairing Code...");
+            latestPairingCode = await sock.requestPairingCode(PHONE_NUMBER);
+            console.log("📲 Your Pairing Code:", latestPairingCode);
+        }
+    } catch (err) {
+        console.error("❌ Error generating pairing code:", err.message);
+    }
 }
 
 connectDB();
@@ -70,9 +67,9 @@ const PORT = 8000;
 
 app.get("/", (req, res) => {
     if (latestPairingCode) {
-        res.send(`<h2>✅ ELSA Bot Running!</h2><p>📲 Pairing Code: <b>${latestPairingCode}</b></p>`);
+        res.send(`<h2>📲 Pairing Code: <b>${latestPairingCode}</b></h2>`);
     } else {
-        res.send("<h2>✅ ELSA Bot Running!</h2><p>⌛ Pairing Code not generated yet. Check again in few seconds.</p>");
+        res.send("⏳ Pairing Code not generated yet. Refresh after a few seconds.");
     }
 });
 
