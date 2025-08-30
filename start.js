@@ -1,3 +1,4 @@
+
 const express = require("express");
 const makeWASocket = require("@whiskeysockets/baileys").default;
 const { useMultiFileAuthState, DisconnectReason } = require("@whiskeysockets/baileys");
@@ -10,7 +11,8 @@ let qrString = null; // store QR temporarily
 let sock; // socket global store
 
 async function startBot() {
-  const { state, saveCreds } = await useMultiFileAuthState("session");
+  // 👉 "session" instead of "auth" use cheythathine replace cheyyuka
+  const { state, saveCreds } = await useMultiFileAuthState("auth");
 
   sock = makeWASocket({
     auth: state,
@@ -41,7 +43,7 @@ async function startBot() {
         console.log("🔄 Reconnecting...");
         startBot(); // auto reconnect
       } else {
-        console.log("❌ Logged out. Delete session and scan again.");
+        console.log("❌ Logged out. Delete auth folder and scan again.");
       }
     }
   });
