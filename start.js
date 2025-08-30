@@ -1,4 +1,11 @@
 // start.js
+const fs = require("fs");
+
+// delete old session before starting
+if (fs.existsSync("./auth")) {
+    fs.rmSync("./auth", { recursive: true, force: true });
+    console.log("🗑️ Old auth folder cleared");
+}
 const mongoose = require("mongoose");
 require("dotenv").config();
 const fs = require("fs");
