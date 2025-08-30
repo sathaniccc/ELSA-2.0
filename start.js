@@ -1,85 +1,53 @@
-require('dotenv').config();
-const express = require('express');
-const log = require('./utils/logger');
-const { connectMongo } = require('./utils/db');
-const { createSocket } = require('./src/connection');
-const { loadCommands } = require('./src/commands');
+require("dotenv").config();
+const { default: makeWASocket, useMultiFileAuthState } = require("@whiskeysockets/baileys");
+const mongoose = require("mongoose");
 
-(async () => {
-  if (process.env.MONGO_URI) await connectMongo(process.env.MONGO_URI);
+// 🔹 MongoDB connect
+async function connectMongo() {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log("✅ MongoDB Connected");
+  } catch (err) {
+    console.error("❌ MongoDB connection failed:", err.message);
+  }
+}
 
-  const app = express();
-  app.get('/', (_, res) => res.send('ELSA bot is running'));
-  const port = process.env.PORT || 3000;
-  app.listen(port, () => log.info('HTTP keepalive on ' + port));
+// 🔹 WhatsApp socket create
+async function createSocket() {
+  const { state, saveCreds } = await useMultiFileAuthState("auth");
 
-  const sock = await createSocket();
-  const commands = loadCommands();
-  let prefix = process.env.PREFIX || '!';
-  const owner = (process.env.OWNER_NUMBER || '').replace(/\D/g, ''); // e.g., 91XXXXXXXXXX
+  const sock = makeWASocket({
+    auth: state,
+    printQRInTerminal: false, // QR off (pairing code venam)
+  });
 
-  function setPrefix(p) { prefix = p; }
-
-  // 🔑 Pairing Code Generator
+  // Pairing code generate cheyyan
   if (!sock.authState.creds.registered) {
-    const phoneNumber = process.env.PAIR_NUMBER || owner; // use env or OWNER_NUMBER
-    if (phoneNumber) {
-      try {
-        const code = await sock.requestPairingCode(phoneNumber);
-        console.log("🔑 PAIRING CODE:", code);
-        log.info("Use this code in WhatsApp → Linked Devices → Link with phone number.");
-      } catch (err) {
-        log.error(err, "Failed to get pairing code");
-      }
-    } else {
-      log.error("No phone number found. Set PAIR_NUMBER=91XXXXXXXXXX in .env");
+    try {
+      const code = await sock.requestPairingCode(process.env.OWNER_NUMBER);
+      console.log("📌 Your Pairing Code:", code);
+    } catch (err) {
+      console.error("❌ Failed to get pairing code:", err.message);
     }
   }
 
-  // simple anti-spam cache
-  const lastText = new Map(); // jid -> text
+  sock.ev.on("creds.update", saveCreds);
 
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return;
-    const m = messages[0];
-    const jid = m.key?.remoteJid;
-    if (!jid) return;
-
-    const text = m.message?.conversation || m.message?.extendedTextMessage?.text || '';
-    if (!text) return;
-
-    // rate limit
-    if (!canUse(jid)) return;
-
-    // anti-spam: ignore exact same repeat back-to-back
-    if (lastText.get(jid) === text) return;
-    lastText.set(jid, text);
-
-    if (!text.startsWith(prefix)) return;
-    const [cmdName, ...args] = text.slice(prefix.length).trim().split(/\s+/);
-    const cmd = commands.get((cmdName || '').toLowerCase());
-    if (!cmd) return;
-
-    // owner-only check
-    if (cmd.ownerOnly) {
-      const isOwner = owner && (jid.startsWith(owner) || jid.includes(owner));
-      if (!isOwner) {
-        await sock.sendMessage(jid, { text: '⛔ Owner-only command.' });
-        return;
-      }
-    }
-
-    try {
-      await cmd.run({ sock, jid, args, m, commands, prefix, setPrefix });
-    } catch (e) {
-      log.error(e, 'Command error');
-      await sock.sendMessage(jid, { text: '⚠️ Command failed.' });
-    }
+  // Example handler
+  sock.ev.on("messages.upsert", async (m) => {
+    console.log("📩 Message received:", JSON.stringify(m, null, 2));
   });
 
-  log.info('ELSA ready. Prefix: ' + prefix + ' (try: ' + prefix + 'ping, ' + prefix + 'menu)');
+  return sock;
+}
 
-})().catch(err => {
-  log.error(err, 'Fatal start error');
-  process.exit(1);
-});
+// 🔹 Start bot
+async function start() {
+  await connectMongo();
+  await createSocket();
+}
+
+start();
